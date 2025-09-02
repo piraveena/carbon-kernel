@@ -48,8 +48,13 @@ public class AuthenticationHandler extends AbstractHandler {
 
     public InvocationResponse invoke(MessageContext msgContext) throws AxisFault {
 
-        // do not authenticate it is a call  to a generic service
-        if (callToGeneralService(msgContext) || skipAuthentication(msgContext)) {
+        Boolean isAuthEnabledAtConfigLevel = AccessControlUtil.isAuthenticationEnabledAtConfigurationLevel(msgContext);
+        // If <AuthenticationEnabled> is not defined at service access control proceed with server.xml checks.
+        // But if <AuthenticationEnabled> is defined and it is false continue the Invocation.
+        if ( isAuthEnabledAtConfigLevel == null
+                && (this.callToGeneralService(msgContext) || skipAuthentication(msgContext))) {
+            return InvocationResponse.CONTINUE;
+        } else if (Boolean.FALSE.equals(isAuthEnabledAtConfigLevel)) {
             return InvocationResponse.CONTINUE;
         }
 
@@ -142,27 +147,8 @@ public class AuthenticationHandler extends AbstractHandler {
         }
     }
 
-    protected boolean isRestrictedOperation(MessageContext msgContext) {
-
-        AxisOperation operation = msgContext.getAxisOperation();
-
-        Parameter authenticationParameter = operation.getParameter("DoAuthentication");
-        return !(authenticationParameter != null && "false".equals(authenticationParameter.getValue()));
-
-    }
-
-    private String getServiceName(MessageContext msgContext) {
-        AxisService service = msgContext.getAxisService();
-        return service.getName();
-    }
-
     private boolean isAuthenticated(MessageContext msgContext,
                                     String remoteIP) throws AuthenticationFailureException {
-
-        // If operation is unrestricted we dont need to do authentication
-        if (!isRestrictedOperation(msgContext)) {
-            return true;
-        }
 
         BackendAuthenticator authenticator =
                 AuthenticatorServerRegistry.getCarbonAuthenticator(msgContext);
@@ -191,7 +177,7 @@ public class AuthenticationHandler extends AbstractHandler {
                 } catch (AuthenticationFailureException e) {
                     SimpleDateFormat date = new SimpleDateFormat("'['yyyy-MM-dd HH:mm:ss,SSSS']'");
                     invalidateSession(msgContext);
-                    String serviceName = getServiceName(msgContext);
+                    String serviceName = AccessControlUtil.getServiceName(msgContext);
                     String msg = "Illegal access attempt at " + date.format(new Date()) + " from IP address "
                                  + remoteIP + " while trying to authenticate access to service " + serviceName;
                     log.warn(msg);
@@ -211,7 +197,7 @@ public class AuthenticationHandler extends AbstractHandler {
                 invalidateSession(msgContext);
 
                 if (AbstractAuthenticator.continueProcessing(msgContext)) {
-                    String serviceName = getServiceName(msgContext);
+                    String serviceName = AccessControlUtil.getServiceName(msgContext);
                     String msg = "Illegal access attempt at " + date.format(new Date()) + " from IP address "
                                + remoteIP + " : Service is " + serviceName;
                     log.warn(msg);

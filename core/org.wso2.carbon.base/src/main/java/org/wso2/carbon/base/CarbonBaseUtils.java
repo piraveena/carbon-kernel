@@ -104,6 +104,16 @@ public class CarbonBaseUtils {
 		return carbonXML + File.separator + "carbon.xml";
 	}
 
+	/**
+	 * Get the path of the service-access-control.xml file
+	 *
+	 * @return Path of the service-access-control.xml file
+	 */
+	public static String getServiceAccessControlFile() {
+
+		return getCarbonConfigDirPath() + File.separator + "service-access-control.xml";
+	}
+
 	public static String getCarbonConfigDirPath() {
 		String carbonConfigDirPath = System
 				.getProperty(CarbonBaseConstants.CARBON_CONFIG_DIR_PATH);
